@@ -42,6 +42,36 @@ const App: React.FC = () => {
     localStorage.setItem('nebula_chats', JSON.stringify(chatState));
   }, [chatState]);
 
+  // Sync messages from backend when authenticated and have active conversation (must run every render - hooks order)
+  useEffect(() => {
+    if (!auth.isAuthenticated || !chatState.activeConversationId) return;
+
+    let isMounted = true;
+    const syncMessages = async () => {
+      try {
+        const remoteMessages = await api.getConversationMessages(chatState.activeConversationId);
+        if (!isMounted) return;
+
+        setChatState(prev => {
+          const updatedConvs = prev.conversations.map(c => {
+            if (c.id !== chatState.activeConversationId) return c;
+            const merged =
+              remoteMessages.length >= c.messages.length ? remoteMessages : c.messages;
+            return { ...c, messages: merged, updatedAt: Date.now() };
+          });
+          return { ...prev, conversations: updatedConvs };
+        });
+      } catch (error) {
+        console.error('Sync messages error:', error);
+      }
+    };
+
+    syncMessages();
+    return () => {
+      isMounted = false;
+    };
+  }, [auth.isAuthenticated, chatState.activeConversationId]);
+
   // --- Handlers ---
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -258,35 +288,6 @@ const App: React.FC = () => {
   const activeConversation = chatState.conversations.find(
     c => c.id === chatState.activeConversationId
   );
-
-  useEffect(() => {
-    if (!auth.isAuthenticated || !chatState.activeConversationId) return;
-
-    let isMounted = true;
-    const syncMessages = async () => {
-      try {
-        const remoteMessages = await api.getConversationMessages(chatState.activeConversationId);
-        if (!isMounted) return;
-
-        setChatState(prev => {
-          const updatedConvs = prev.conversations.map(c => {
-            if (c.id !== chatState.activeConversationId) return c;
-            const merged =
-              remoteMessages.length >= c.messages.length ? remoteMessages : c.messages;
-            return { ...c, messages: merged, updatedAt: Date.now() };
-          });
-          return { ...prev, conversations: updatedConvs };
-        });
-      } catch (error) {
-        console.error('Sync messages error:', error);
-      }
-    };
-
-    syncMessages();
-    return () => {
-      isMounted = false;
-    };
-  }, [auth.isAuthenticated, chatState.activeConversationId]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-ayur-bg font-sans">

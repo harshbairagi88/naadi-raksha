@@ -7,8 +7,7 @@ export class GeminiService {
   private userName: string;
 
   constructor(userName: string = 'User') {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY});
-    console.log(process.env.API_KEY)
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     this.userName = userName;
   }
 

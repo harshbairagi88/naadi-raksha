@@ -24,6 +24,10 @@ const corsOptions = {
     if (allowedOrigins.includes(requestOrigin)) {
       return callback(null, true);
     }
+    // Allow common dev origins even if not in env (e.g. env parsing issues)
+    if (/^https?:\/\/localhost(:\d+)?$/.test(requestOrigin)) {
+      return callback(null, true);
+    }
 
     return callback(new Error('CORS not allowed'));
   },

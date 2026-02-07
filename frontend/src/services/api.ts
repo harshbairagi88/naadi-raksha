@@ -1,8 +1,9 @@
 import { Message, Role, User } from '../types';
 
+// In dev use relative URL so Vite proxy forwards /api to backend (avoids CORS). Production: set VITE_API_URL.
+const env = import.meta.env;
 const API_BASE =
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  'http://localhost:5000';
+  env.DEV ? '' : ((env as { VITE_API_URL?: string }).VITE_API_URL || 'http://localhost:5000');
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {

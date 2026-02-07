@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Lato, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --color-ayur-dark: #2c4a45;
+  --color-ayur-green: #3a5c55;
+  --color-ayur-leaf: #5d8a78;
+  --color-ayur-accent: #e67e55;
+  --color-ayur-bg: #f4f1ea;
+  --color-ayur-card: #fcfbf7;
+  --color-ayur-text: #2d3748;
+  --color-ayur-light: #f7f9f2;
+}
+
+body {
+  background-color: #f4f1ea;
+  color: #2d3748;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
