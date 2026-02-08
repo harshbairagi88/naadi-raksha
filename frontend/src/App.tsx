@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import { ICONS } from './constants';
 import { api } from './services/api';
 import { ChatService } from './services/chatService';
-import { AuthState, ChatState, Conversation, Message, Role } from './types';
+import { AuthState, ChatState, Conversation, HealthData, Message, Role } from './types';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -29,6 +29,10 @@ const App: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [chatService, setChatService] = useState<ChatService | null>(null);
+  const [healthData, setHealthData] = useState<HealthData | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState('');
+  const [healthUpdatedAt, setHealthUpdatedAt] = useState<number | null>(null);
 
   // --- Persistence Effects ---
   useEffect(() => {
@@ -45,6 +49,45 @@ const App: React.FC = () => {
       });
     }
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.user) {
+      setHealthData(null);
+      setHealthError('');
+      setHealthLoading(false);
+      setHealthUpdatedAt(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchHealth = async (showLoading: boolean) => {
+      if (showLoading) {
+        setHealthLoading(true);
+      }
+      try {
+        const latest = await api.getLatestHealthForPatient(auth.user.id);
+        if (!isMounted) return;
+        setHealthData(latest);
+        setHealthError('');
+        setHealthUpdatedAt(Date.now());
+      } catch (error) {
+        if (!isMounted) return;
+        setHealthError('Unable to load device health data.');
+      } finally {
+        if (isMounted && showLoading) {
+          setHealthLoading(false);
+        }
+      }
+    };
+
+    fetchHealth(true);
+    const intervalId = window.setInterval(() => fetchHealth(false), 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     localStorage.setItem('nebula_chats', JSON.stringify(chatState));
@@ -107,6 +150,10 @@ const App: React.FC = () => {
     chatService?.disconnect();
     setAuth({ user: null, isAuthenticated: false });
     setChatState({ ...chatState, activeConversationId: null });
+    setHealthData(null);
+    setHealthError('');
+    setHealthLoading(false);
+    setHealthUpdatedAt(null);
   };
 
   const createNewChat = useCallback(() => {
@@ -300,7 +347,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-ayur-bg font-sans">
-      <Sidebar onLogout={handleLogout} isOpen={isSidebarOpen} userName={auth.user?.name} />
+      <Sidebar
+        onLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        userName={auth.user?.name}
+        healthData={healthData}
+        healthLoading={healthLoading}
+        healthError={healthError}
+        healthUpdatedAt={healthUpdatedAt ?? undefined}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 relative bg-ayur-bg">
         {/* Overlay for mobile sidebar */}

@@ -35,3 +35,54 @@ export interface ChatState {
   activeConversationId: string | null;
   isTyping: boolean;
 }
+
+export interface HealthBloodPressure {
+  systolic?: number;
+  diastolic?: number;
+  unit?: string;
+}
+
+export interface HealthMetrics {
+  temperatureC?: number;
+  pulseRateBpm?: number;
+  respirationRateBpm?: number;
+  spo2Percent?: number;
+  glucoseMgDl?: number;
+  bloodPressure?: HealthBloodPressure;
+}
+
+export interface HealthActivity {
+  posture?: string;
+  steps?: number;
+}
+
+export interface HealthBattery {
+  levelPercent?: number;
+  charging?: boolean;
+}
+
+export interface HealthSignal {
+  rssi?: number;
+  networkType?: string;
+}
+
+export interface HealthLocation {
+  lat?: number;
+  lng?: number;
+  accuracyMeters?: number;
+}
+
+export interface HealthData {
+  id: string;
+  deviceId: string;
+  deviceType?: string;
+  firmwareVersion?: string;
+  patientId?: string;
+  capturedAt?: string;
+  receivedAt?: string;
+  metrics?: HealthMetrics;
+  activity?: HealthActivity;
+  battery?: HealthBattery;
+  signal?: HealthSignal;
+  location?: HealthLocation;
+}
