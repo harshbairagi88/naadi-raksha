@@ -17,6 +17,7 @@ app.use(helmet());
 // const allowedOrigins = ['http://localhost:5173', ];
 const normalizeOrigin = origin => (origin ? origin.replace(/\/+$/, '') : origin);
 const allowedOrigins = config.FRONTEND_URLS.map(normalizeOrigin);
+const allowAllOrigins = allowedOrigins.includes('*');
 
 logger.debug('Allowed origins:', allowedOrigins);
 
@@ -25,7 +26,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     const requestOrigin = normalizeOrigin(origin);
-    if (allowedOrigins.includes(requestOrigin)) {
+    if (allowAllOrigins || allowedOrigins.includes(requestOrigin)) {
       return callback(null, true);
     }
     // Allow common dev origins in non-production to avoid local env issues

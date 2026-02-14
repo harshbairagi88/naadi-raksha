@@ -10,17 +10,37 @@ dotenvConfig({ path: path.resolve(__dirname, '../../.env') });
 // Optional local overrides (kept out of git)
 dotenvConfig({ path: path.resolve(__dirname, '../../.env.local') });
 
-const nodeEnv = (process.env.NODE_ENV || 'development').trim();
+const isRender =
+  Boolean(process.env.RENDER) ||
+  Boolean(process.env.RENDER_SERVICE_ID) ||
+  Boolean(process.env.RENDER_INSTANCE_ID);
+const nodeEnv = (process.env.NODE_ENV || (isRender ? 'production' : 'development')).trim();
 const isProd = nodeEnv === 'production';
+
+const normalizeOriginValue = (value = '') => {
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+  if (trimmed === '*') return '*';
+
+  const withoutSlash = trimmed.replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(withoutSlash)) return withoutSlash;
+
+  const scheme = isProd ? 'https://' : 'http://';
+  return `${scheme}${withoutSlash}`;
+};
 
 const parseOrigins = (value = '') =>
   value
     .split(',')
-    .map(item => item.trim())
-    .filter(Boolean)
-    .map(item => item.replace(/\/+$/, ''));
+    .map(item => normalizeOriginValue(item))
+    .filter(Boolean);
 
-const rawOrigins = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '';
+const rawOrigins = [
+  process.env.FRONTEND_URLS,
+  process.env.FRONTEND_URL,
+  process.env.VERCEL_URL,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL,
+].filter(Boolean).join(',');
 const envOrigins = rawOrigins ? parseOrigins(rawOrigins) : [];
 const defaultOrigins = isProd ? [] : ['http://localhost:5173', 'http://localhost:3000'];
 

@@ -10,9 +10,10 @@ import logger from './src/utils/logger.js';
 connectToDb();
 
 const server = http.createServer(app);
+const socketCorsOrigin = config.FRONTEND_URLS.includes('*') ? '*' : config.FRONTEND_URLS;
 const io = new SocketServer(server, {
   cors: {
-    origin: config.FRONTEND_URLS,
+    origin: socketCorsOrigin,
     credentials: true,
     methods: ['GET', 'POST'],
   },
