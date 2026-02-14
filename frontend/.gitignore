@@ -24,9 +24,6 @@ lerna-debug.log*
 !.env.sample
 *.local
 <<<<<<< HEAD
-.env
-# Editor directories and files
-=======
 
 # Coverage
 coverage/
@@ -51,7 +48,10 @@ cypress/screenshots/
 # OS/editor
 .DS_Store
 Thumbs.db
->>>>>>> development
+=======
+.env
+# Editor directories and files
+>>>>>>> df6ff3d11422fb1ae433eab55e8afc32f8c1f175
 .vscode/*
 !.vscode/extensions.json
 .idea
