@@ -1,7 +1,15 @@
+import config from '../config/config.js';
 import User from '../models/user.model.js';
 
 export const createOrGetUser = async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payload',
+      });
+    }
+
     const { name, avatar = '' } = req.body || {};
 
     if (!name || !name.trim()) {
@@ -15,10 +23,18 @@ export const createOrGetUser = async (req, res) => {
 
     let user = await User.findOne({ normalizedName }).select('-__v').lean();
     if (!user) {
-      const newUser = new User({ name: name.trim(), avatar });
-      await newUser.save();
-      user = newUser.toObject();
-      delete user.__v;
+      try {
+        const newUser = new User({ name: name.trim(), avatar });
+        await newUser.save();
+        user = newUser.toObject();
+        delete user.__v;
+      } catch (error) {
+        if (error?.code === 11000) {
+          user = await User.findOne({ normalizedName }).select('-__v').lean();
+        } else {
+          throw error;
+        }
+      }
     }
 
     return res.json({
@@ -30,7 +46,7 @@ export const createOrGetUser = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to create user',
-      error: error.message,
+      ...(config.IS_PROD ? {} : { error: error.message }),
     });
   }
 };
@@ -56,7 +72,7 @@ export const getUserById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch user',
-      error: error.message,
+      ...(config.IS_PROD ? {} : { error: error.message }),
     });
   }
 };

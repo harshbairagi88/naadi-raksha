@@ -1,140 +1,90 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import config from '../config/config.js';
 
-const ai = new GoogleGenerativeAI(config.GOOGLE_API_KEY);
+const MAX_HISTORY_MESSAGES = 20;
+
+const buildSystemInstruction = userName => {
+  const safeName = typeof userName === 'string' && userName.trim() ? userName.trim() : 'User';
+  return [
+    `You are an expert Ayurvedic AI Health Assistant helping a patient named ${safeName}.`,
+    'You are knowledgeable about Pitta, Vata, and Kapha doshas.',
+    'The patient currently has a Pitta Aggravation (excess heat).',
+    'Recommend cooling foods, herbs like Yashtimadhu and Amalaki, and therapies like Virechana.',
+    'Keep your tone professional, soothing, and medically responsible.',
+    'Always include a brief disclaimer that this is not a substitute for medical advice.',
+    'Use Markdown to format lists and emphasis.',
+    'Keep responses concise and structured.',
+  ].join(' ');
+};
+
+const normalizeHistory = history => {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(item => item && typeof item.content === 'string')
+    .filter(item => item.role === 'user' || item.role === 'model')
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map(item => ({
+      role: item.role === 'model' ? 'Assistant' : 'User',
+      content: item.content.trim(),
+    }))
+    .filter(item => item.content.length > 0);
+};
 
 class AIService {
-  async reviewCode(code, language = 'javascript') {
-    if (!code || typeof code !== 'string') {
-      throw new Error('Invalid input: code must be a non-empty string.');
+  constructor() {
+    this.ai = null;
+  }
+
+  getClient() {
+    if (!config.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set');
+    }
+    if (!this.ai) {
+      this.ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+    }
+    return this.ai;
+  }
+
+  buildPrompt({ history, message, userName }) {
+    const systemInstruction = buildSystemInstruction(userName);
+    const normalizedHistory = normalizeHistory(history);
+
+    const lines = [systemInstruction];
+
+    if (normalizedHistory.length > 0) {
+      lines.push('');
+      lines.push('Conversation history:');
+      for (const entry of normalizedHistory) {
+        lines.push(`${entry.role}: ${entry.content}`);
+      }
     }
 
-    const model = ai.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+    lines.push('');
+    lines.push(`User: ${message.trim()}`);
+    lines.push('Assistant:');
+
+    return lines.join('\n');
+  }
+
+  async *streamChat({ history = [], message, userName }) {
+    if (!message || typeof message !== 'string') {
+      throw new Error('message is required');
+    }
+
+    const prompt = this.buildPrompt({ history, message, userName });
+    const client = this.getClient();
+    const response = await client.models.generateContentStream({
+      model: config.GEMINI_MODEL,
+      contents: prompt,
+      config: { temperature: 0.7 },
     });
 
-    try {
-      console.log(` Reviewing ${language} code...`);
-
-      const prompt = this.buildPrompt(code, language);
-
-      //  CORRECT API FOR THIS SDK
-      const response = await model.generateContent(prompt);
-
-      return {
-        success: true,
-        review: response.response.text(),
-      };
-    } catch (err) {
-      const msg = err?.message || '';
-
-      // Quota exceeded
-      if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota')) {
-        return {
-          success: false,
-          reason: 'AI_QUOTA_EXCEEDED',
-          review: this.getQuotaExceededReview(language),
-        };
+    for await (const chunk of response) {
+      const text = chunk.text;
+      if (text) {
+        yield text;
       }
-
-      //  Model overloaded / network / other
-      console.error('AI review failed:', msg);
-
-      return {
-        success: false,
-        reason: 'AI_FAILED',
-        review: this.getFallbackReview(language),
-      };
     }
-  }
-
-  buildPrompt(code, language) {
-    return `
-You are a senior ${language} developer and code reviewer.
-
-Your task is to analyze the code step by step and produce a structured review.
-
-IMPORTANT RULES:
-- Be clear and concise
-- Do NOT repeat the entire code
-- Use markdown headings
-- Max 3–5 key issues
-- Suggestions must be practical
-
----
-## 1️⃣ Current Code Behavior
-Explain clearly:
-- What this code does
-- How it executes
-- What happens when it runs
-
-## 2️⃣ Current Output / Result
-Describe:
-- What output or result this code produces
-- Any side effects (logs, mutations, API calls, state changes)
-
-## 3️⃣ Issues & Risks
-Identify:
-- Bugs or logical issues
-- Edge cases
-- Performance concerns
-- Security problems (if any)
-
-## 4️⃣ Suggestions & Improvements
-Give actionable improvements with short explanations.
-
-## 5️⃣ Improved Code Snippet
-Provide ONLY the improved or corrected part of the code.
-Keep it minimal.
-
-## 6️⃣ Important Notes
-Mention:
-- Best practices
-- Mordern way
-- Scalability concerns
-- Maintainability tips
-- Testing suggestions
-
----
-CODE TO REVIEW:
-\`\`\`${language}
-${code}
-\`\`\`
-
-End with a short encouraging sentence.
-`;
-  }
-
-  getFallbackReview(language) {
-    return `## ⚠️ AI Review Unavailable
-
-The AI service is temporarily unavailable.
-
-### Suggestions
-- Add error handling
-- Improve naming consistency
-- Follow ${language} best practices
-- Write unit tests
-
-### Keep going
-Your structure is on the right track.`;
-  }
-
-  getQuotaExceededReview(language) {
-    return `## 🚫 AI Quota Reached
-
-Your Gemini API quota has been exhausted.
-
-### What you can do
-- Enable billing in Google Cloud
-- Wait for quota reset
-- Switch to a paid plan
-
-### Status
-- Language: ${language}
-- AI Engine: Gemini
-
-💡 This does **not** affect collaboration or saving.`;
   }
 }
 

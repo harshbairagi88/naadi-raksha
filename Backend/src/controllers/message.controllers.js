@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
+import config from '../config/config.js';
 import messageService from '../services/message.service.js';
 import User from '../models/user.model.js';
 
 export const getConversationMessages = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const conversationId = typeof req.params?.conversationId === 'string'
+      ? req.params.conversationId.trim()
+      : '';
     const { limit, before, after } = req.query;
 
     if (!conversationId) {
@@ -14,8 +17,19 @@ export const getConversationMessages = async (req, res) => {
       });
     }
 
+    if (conversationId.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: 'conversationId is too long',
+      });
+    }
+
+    const parsedLimit = parseInt(limit, 10);
+    const safeLimit = Number.isFinite(parsedLimit) ? parsedLimit : 200;
+    const clampedLimit = Math.min(Math.max(safeLimit, 1), 500);
+
     const messages = await messageService.getConversationMessages(conversationId, {
-      limit: limit ? parseInt(limit, 10) : 200,
+      limit: clampedLimit,
       before,
       after,
     });
@@ -30,19 +44,37 @@ export const getConversationMessages = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch messages',
-      error: error.message,
+      ...(config.IS_PROD ? {} : { error: error.message }),
     });
   }
 };
 
 export const createMessage = async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payload',
+      });
+    }
+
     const { conversationId, userId, role, content } = req.body || {};
 
-    if (!conversationId || !userId || !content) {
+    const trimmedContent = typeof content === 'string' ? content.trim() : '';
+    const normalizedConversationId =
+      typeof conversationId === 'string' ? conversationId.trim() : '';
+
+    if (!normalizedConversationId || !userId || !trimmedContent) {
       return res.status(400).json({
         success: false,
         message: 'conversationId, userId, and content are required',
+      });
+    }
+
+    if (normalizedConversationId.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: 'conversationId is too long',
       });
     }
 
@@ -61,11 +93,21 @@ export const createMessage = async (req, res) => {
       });
     }
 
+    const allowedRoles = new Set(['user', 'model', 'system']);
+    const safeRole = allowedRoles.has(role) ? role : 'user';
+
+    if (trimmedContent.length > 8000) {
+      return res.status(400).json({
+        success: false,
+        message: 'content exceeds 8000 characters',
+      });
+    }
+
     const message = await messageService.createMessage({
-      conversationId,
+      conversationId: normalizedConversationId,
       userId,
-      role,
-      content,
+      role: safeRole,
+      content: trimmedContent,
     });
 
     return res.status(201).json({
@@ -77,7 +119,7 @@ export const createMessage = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to create message',
-      error: error.message,
+      ...(config.IS_PROD ? {} : { error: error.message }),
     });
   }
 };

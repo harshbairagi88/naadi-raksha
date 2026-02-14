@@ -1,10 +1,15 @@
 import React from 'react';
 import { ICONS } from '../constants';
+import { HealthBloodPressure, HealthData } from '../types';
 
 interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   userName?: string;
+  healthData?: HealthData | null;
+  healthLoading?: boolean;
+  healthError?: string;
+  healthUpdatedAt?: number;
   // Props from previous interface ignored for this visual overhaul
   conversations?: any;
   activeId?: any;
@@ -13,7 +18,95 @@ interface SidebarProps {
   onDelete?: any;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onLogout, userName = 'User' }) => {
+const formatValue = (value?: number, suffix?: string, digits = 0) => {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '--';
+  }
+  const formatted = value.toFixed(digits);
+  return suffix ? `${formatted} ${suffix}` : formatted;
+};
+
+const formatTemperature = (value?: number) => {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '--';
+  }
+  const fahrenheit = (value * 9) / 5 + 32;
+  return `${value.toFixed(1)}°C (${fahrenheit.toFixed(1)}°F)`;
+};
+
+const formatBloodPressure = (bloodPressure?: HealthBloodPressure) => {
+  if (!bloodPressure) return '--';
+  const systolic =
+    bloodPressure.systolic === null || bloodPressure.systolic === undefined
+      ? '--'
+      : bloodPressure.systolic;
+  const diastolic =
+    bloodPressure.diastolic === null || bloodPressure.diastolic === undefined
+      ? '--'
+      : bloodPressure.diastolic;
+  if (systolic === '--' && diastolic === '--') return '--';
+  const unit = bloodPressure.unit || 'mmHg';
+  return `${systolic}/${diastolic} ${unit}`;
+};
+
+const formatTimestamp = (value?: string) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  return date.toLocaleString();
+};
+
+const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onLogout,
+  userName = 'User',
+  healthData = null,
+  healthLoading = false,
+  healthError = '',
+  healthUpdatedAt,
+}) => {
+  const metrics = healthData?.metrics;
+  const activity = healthData?.activity;
+  const battery = healthData?.battery;
+  const signal = healthData?.signal;
+  const lastCaptured = healthData?.capturedAt || healthData?.receivedAt;
+  const lastUpdated = lastCaptured || (healthUpdatedAt ? new Date(healthUpdatedAt).toISOString() : '');
+
+  const primaryVitals = [
+    {
+      label: 'Pulse Rate',
+      value: formatValue(metrics?.pulseRateBpm, 'bpm'),
+      icon: <ICONS.Pulse />,
+      badgeClass: 'bg-yellow-600/30 text-yellow-200',
+    },
+    {
+      label: 'Blood Pressure',
+      value: formatBloodPressure(metrics?.bloodPressure),
+      icon: <ICONS.Activity />,
+      badgeClass: 'bg-red-600/30 text-red-200',
+    },
+    {
+      label: 'Body Temp',
+      value: formatTemperature(metrics?.temperatureC),
+      icon: <ICONS.Temp />,
+      badgeClass: 'bg-orange-600/30 text-orange-200',
+    },
+  ];
+
+  const secondaryVitals = [
+    { label: 'SpO2', value: formatValue(metrics?.spo2Percent, '%') },
+    { label: 'Respiration', value: formatValue(metrics?.respirationRateBpm, 'bpm') },
+    { label: 'Glucose', value: formatValue(metrics?.glucoseMgDl, 'mg/dL') },
+    { label: 'Steps', value: formatValue(activity?.steps) },
+    {
+      label: 'Battery',
+      value: battery
+        ? `${formatValue(battery.levelPercent, '%')}${battery.charging ? ' • charging' : ''}`
+        : '--',
+    },
+    { label: 'Signal', value: formatValue(signal?.rssi, 'dBm') },
+  ];
+
   return (
     <div
       className={`
@@ -57,36 +150,50 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onLogout, userName = 'User' }
               <ICONS.Settings />
             </div>
 
+            {(healthLoading || healthError) && (
+              <div className="text-xs text-white/70 mb-2">
+                {healthError ? healthError : 'Loading latest device data...'}
+              </div>
+            )}
+
             {/* Vitals */}
             <div className="space-y-4 mt-3">
-              <div className="flex items-center justify-between group cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="p-1.5 bg-yellow-600/30 rounded-lg text-yellow-200">
-                    <ICONS.Pulse />
+              {primaryVitals.map(item => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-1.5 rounded-lg ${item.badgeClass}`}>{item.icon}</div>
+                    <span className="text-sm text-gray-100">{item.label}</span>
                   </div>
-                  <span className="text-sm text-gray-100">Pulse Rate</span>
+                  <span className="font-mono font-medium text-white">{item.value}</span>
                 </div>
-                <span className="font-mono font-medium text-white">88 bpm</span>
-              </div>
+              ))}
+            </div>
 
-              <div className="flex items-center justify-between group cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="p-1.5 bg-red-600/30 rounded-lg text-red-200">
-                    <ICONS.Activity />
-                  </div>
-                  <span className="text-sm text-gray-100">Blood Pressure</span>
+            <div className="mt-4 border-t border-white/10 pt-3 space-y-3">
+              {secondaryVitals.map(item => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between text-sm text-gray-100"
+                >
+                  <span>{item.label}</span>
+                  <span className="font-mono font-medium text-white">{item.value}</span>
                 </div>
-                <span className="font-mono font-medium text-white">145/90 mmHg</span>
-              </div>
+              ))}
+            </div>
 
-              <div className="flex items-center justify-between group cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="p-1.5 bg-orange-600/30 rounded-lg text-orange-200">
-                    <ICONS.Temp />
-                  </div>
-                  <span className="text-sm text-gray-100">Body Temp</span>
-                </div>
-                <span className="font-mono font-medium text-white">99.1°F</span>
+            <div className="mt-4 text-xs text-white/60 space-y-1">
+              <div>
+                Device:{' '}
+                <span className="font-mono text-white/80">
+                  {healthData?.deviceId || 'Not linked'}
+                </span>
+              </div>
+              <div>
+                Last update:{' '}
+                <span className="font-mono text-white/80">{formatTimestamp(lastUpdated)}</span>
               </div>
             </div>
           </div>

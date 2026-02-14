@@ -1,5 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,16 +17,44 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Environment
+.env
+.env.*
+!.env.example
+!.env.sample
 *.local
+<<<<<<< HEAD
 .env
 # Editor directories and files
+=======
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Caches
+.cache/
+.eslintcache
+.stylelintcache
+.turbo/
+.parcel-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing artifacts
+.playwright/
+.playwright-report/
+cypress/videos/
+cypress/screenshots/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+>>>>>>> development
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
