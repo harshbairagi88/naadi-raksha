@@ -40,9 +40,18 @@ const rawOrigins = [
   process.env.FRONTEND_URL,
   process.env.VERCEL_URL,
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
-].filter(Boolean).join(',');
+]
+  .filter(Boolean)
+  .join(',');
 const envOrigins = rawOrigins ? parseOrigins(rawOrigins) : [];
-const defaultOrigins = isProd ? [] : ['http://localhost:5173', 'http://localhost:3000', 'https://naadi-raksha.vercel.app'];
+const defaultOrigins = isProd
+  ? []
+  : [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://naadi-raksha.vercel.app',
+      'https://spanda-vidya.vercel.app',
+    ];
 
 const toNumber = (value, fallback) => {
   const parsed = Number(value);
