@@ -1,7 +1,7 @@
-Naadi-raksha — Ayurvedic AI Chat Assistant
+SpandaVidyaAi — Ayurvedic AI Chat Assistant
 🌿 Project Overview
 
-Naadi-raksha is a modern AI-powered chat application that responds like an Ayurvedic doctor (Vaidya).
+SpandaVidyaAi is a modern AI-powered chat application that responds like an Ayurvedic doctor (Vaidya).
 It blends classical Ayurvedic knowledge with Google Gemini AI to provide natural, context-aware wellness guidance through a clean, minimal chat interface.
 
 
@@ -20,7 +20,7 @@ Secure AI integration
 
 Ancient wisdom. Modern intelligence.
 
-Naadi-raksha is designed to simulate the consultation style of an Ayurvedic practitioner—focusing on Doshas (Vata, Pitta, Kapha), lifestyle balance, and holistic well-being rather than symptom-only answers.
+SpandaVidyaAi is designed to simulate the consultation style of an Ayurvedic practitioner—focusing on Doshas (Vata, Pitta, Kapha), lifestyle balance, and holistic well-being rather than symptom-only answers.
 
 🚀 Features
 
@@ -32,7 +32,7 @@ Naadi-raksha is designed to simulate the consultation style of an Ayurvedic prac
 ♻️ Easy to extend (profiles, history, auth)
 
 🏗️ Project Architecture
-Naadi-raksha/
+SpandaVidyaAi/
 ├── index.html # App entry HTML
 ├── package.json
 ├── vite.config.ts
@@ -113,7 +113,7 @@ npm run preview — preview production build
 
 🌱 Ayurvedic AI Tone Rules (Design Principle)
 
-Naadi-raksha
+SpandaVidyaAi
 responses are designed to:
 Avoid medical diagnosis claims
 Use calming, advisory language
