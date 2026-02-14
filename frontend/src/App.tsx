@@ -6,8 +6,8 @@ import Input from './components/Input';
 import Sidebar from './components/Sidebar';
 import { ICONS } from './constants';
 import { api } from './services/api';
-import { GeminiService } from './services/geminiService';
-import { AuthState, ChatState, Conversation, Message, Role } from './types';
+import { ChatService } from './services/chatService';
+import { AuthState, ChatState, Conversation, HealthData, Message, Role } from './types';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -28,15 +28,66 @@ const App: React.FC = () => {
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [gemini, setGemini] = useState<GeminiService | null>(null);
+  const [chatService, setChatService] = useState<ChatService | null>(null);
+  const [healthData, setHealthData] = useState<HealthData | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState('');
+  const [healthUpdatedAt, setHealthUpdatedAt] = useState<number | null>(null);
 
   // --- Persistence Effects ---
   useEffect(() => {
     localStorage.setItem('nebula_auth', JSON.stringify(auth));
-    if (auth.isAuthenticated) {
-      setGemini(new GeminiService(auth.user?.name || 'User'));
+    if (auth.isAuthenticated && auth.user) {
+      setChatService(prev => {
+        prev?.disconnect();
+        return new ChatService(auth.user.id, auth.user.name || 'User');
+      });
+    } else {
+      setChatService(prev => {
+        prev?.disconnect();
+        return null;
+      });
     }
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.user) {
+      setHealthData(null);
+      setHealthError('');
+      setHealthLoading(false);
+      setHealthUpdatedAt(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchHealth = async (showLoading: boolean) => {
+      if (showLoading) {
+        setHealthLoading(true);
+      }
+      try {
+        const latest = await api.getLatestHealthForPatient(auth.user.id);
+        if (!isMounted) return;
+        setHealthData(latest);
+        setHealthError('');
+        setHealthUpdatedAt(Date.now());
+      } catch (error) {
+        if (!isMounted) return;
+        setHealthError('Unable to load device health data.');
+      } finally {
+        if (isMounted && showLoading) {
+          setHealthLoading(false);
+        }
+      }
+    };
+
+    fetchHealth(true);
+    const intervalId = window.setInterval(() => fetchHealth(false), 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     localStorage.setItem('nebula_chats', JSON.stringify(chatState));
@@ -96,8 +147,13 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    chatService?.disconnect();
     setAuth({ user: null, isAuthenticated: false });
     setChatState({ ...chatState, activeConversationId: null });
+    setHealthData(null);
+    setHealthError('');
+    setHealthLoading(false);
+    setHealthUpdatedAt(null);
   };
 
   const createNewChat = useCallback(() => {
@@ -134,7 +190,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!gemini || !chatState.activeConversationId) return;
+    if (!chatService || !chatState.activeConversationId) return;
     if (!auth.user) return;
 
     const currentChatId = chatState.activeConversationId;
@@ -188,7 +244,7 @@ const App: React.FC = () => {
       const effectiveHistory = [...history, userMsg];
 
       // 4. Stream Response
-      const stream = await gemini.streamChat(effectiveHistory, text);
+      const stream = await chatService.streamChat(effectiveHistory, text, currentChatId);
 
       let accumulatedText = '';
 
@@ -291,7 +347,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-ayur-bg font-sans">
-      <Sidebar onLogout={handleLogout} isOpen={isSidebarOpen} userName={auth.user?.name} />
+      <Sidebar
+        onLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        userName={auth.user?.name}
+        healthData={healthData}
+        healthLoading={healthLoading}
+        healthError={healthError}
+        healthUpdatedAt={healthUpdatedAt ?? undefined}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 relative bg-ayur-bg">
         {/* Overlay for mobile sidebar */}

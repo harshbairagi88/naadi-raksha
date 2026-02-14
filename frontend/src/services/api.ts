@@ -1,9 +1,11 @@
-import { Message, Role, User } from '../types';
+import { HealthData, Message, Role, User } from '../types';
 
 // In dev use relative URL so Vite proxy forwards /api to backend (avoids CORS). Production: set VITE_API_URL.
 const env = import.meta.env;
-const API_BASE =
-  env.DEV ? '' : ((env as { VITE_API_URL?: string }).VITE_API_URL || 'http://localhost:5000');
+const normalizeBase = (base: string) => base.replace(/\/+$/, '');
+const API_BASE = env.DEV
+  ? ''
+  : normalizeBase((env as { VITE_API_URL?: string }).VITE_API_URL || window.location.origin);
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -21,6 +23,21 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<T> =
 
   return res.json() as Promise<T>;
 };
+
+const mapHealthData = (item: any): HealthData => ({
+  id: item?._id ?? item?.id ?? '',
+  deviceId: item?.deviceId ?? '',
+  deviceType: item?.deviceType,
+  firmwareVersion: item?.firmwareVersion,
+  patientId: item?.patientId,
+  capturedAt: item?.capturedAt,
+  receivedAt: item?.receivedAt,
+  metrics: item?.metrics,
+  activity: item?.activity,
+  battery: item?.battery,
+  signal: item?.signal,
+  location: item?.location,
+});
 
 export const api = {
   async createUser(name: string): Promise<User> {
@@ -58,5 +75,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  },
+
+  async getLatestHealthForPatient(patientId: string): Promise<HealthData | null> {
+    const data = await request<{ success: boolean; count: number; data: any[] }>(
+      `/api/health/patient/${patientId}?limit=1`
+    );
+    const item = data?.data?.[0];
+    return item ? mapHealthData(item) : null;
   },
 };

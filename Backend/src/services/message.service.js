@@ -5,8 +5,22 @@ class MessageService {
     const { limit = 200, before, after } = options;
     const query = { conversationId };
 
-    if (before) query.createdAt = { $lt: new Date(before) };
-    if (after) query.createdAt = { $gt: new Date(after) };
+    const createdAt = {};
+    if (before) {
+      const beforeDate = new Date(before);
+      if (!Number.isNaN(beforeDate.getTime())) {
+        createdAt.$lt = beforeDate;
+      }
+    }
+    if (after) {
+      const afterDate = new Date(after);
+      if (!Number.isNaN(afterDate.getTime())) {
+        createdAt.$gt = afterDate;
+      }
+    }
+    if (Object.keys(createdAt).length) {
+      query.createdAt = createdAt;
+    }
 
     return await Message.find(query).sort({ createdAt: -1 }).limit(limit).select('-__v').lean();
   }

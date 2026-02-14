@@ -3,18 +3,22 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import config from './config/config.js';
+import { apiLimiter } from './middlewares/rateLimit.js';
+import logger from './utils/logger.js';
 
 import messageRoutes from './routes/message.routes.js';
 import userRoutes from './routes/user.routes.js';
+import healthRoutes from './routes/health.routes.js';
 
 const app = express();
+app.disable('x-powered-by');
 app.use(helmet());
 
-// const allowedOrigins = ['http://localhost:5173', 'https://codex-psi-murex.vercel.app/];
+// const allowedOrigins = ['http://localhost:5173', ];
 const normalizeOrigin = origin => (origin ? origin.replace(/\/+$/, '') : origin);
 const allowedOrigins = config.FRONTEND_URLS.map(normalizeOrigin);
 
-console.log('Allowed Origins:', allowedOrigins);
+logger.debug('Allowed origins:', allowedOrigins);
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -24,8 +28,8 @@ const corsOptions = {
     if (allowedOrigins.includes(requestOrigin)) {
       return callback(null, true);
     }
-    // Allow common dev origins even if not in env (e.g. env parsing issues)
-    if (/^https?:\/\/localhost(:\d+)?$/.test(requestOrigin)) {
+    // Allow common dev origins in non-production to avoid local env issues
+    if (!config.IS_PROD && /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin)) {
       return callback(null, true);
     }
 
@@ -39,15 +43,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(apiLimiter);
+app.use(
+  morgan(config.IS_PROD ? 'combined' : 'dev', {
+    skip: req => req.path?.startsWith('/api/health'),
+  })
+);
+app.use(express.json({ limit: config.REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: config.REQUEST_BODY_LIMIT }));
 
-app.set('trust proxy', 1);
+app.set('trust proxy', config.IS_PROD ? 1 : false);
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'CodeX API Server is running',
+    message: 'API Server is running',
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
@@ -56,5 +65,31 @@ app.get('/', (req, res) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/health', healthRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const isCorsError = err?.message === 'CORS not allowed';
+  const isPayloadTooLarge = err?.type === 'entity.too.large';
+  const statusCode = isCorsError ? 403 : isPayloadTooLarge ? 413 : err?.status || 500;
+
+  if (!isCorsError) {
+    logger.error('API error:', err);
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    message: isCorsError
+      ? 'CORS not allowed'
+      : isPayloadTooLarge
+        ? 'Request payload too large'
+        : 'Internal server error',
+    ...(config.IS_PROD ? {} : { error: err?.message }),
+  });
+});
 
 export default app;
