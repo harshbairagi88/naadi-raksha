@@ -18,6 +18,7 @@ const App: React.FC = () => {
 
   const [nameInput, setNameInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // --- Chat State ---
   const [chatState, setChatState] = useState<ChatState>(() => {
@@ -127,12 +128,14 @@ const App: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loginLoading) return;
     setLoginError('');
     if (!nameInput.trim()) {
       setLoginError('Display Name is required.');
       return;
     }
     try {
+      setLoginLoading(true);
       const user = await api.createUser(nameInput.trim());
       setAuth({ user, isAuthenticated: true });
 
@@ -143,6 +146,8 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Login error:', error);
       setLoginError('Unable to connect to server. Please try again.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -279,11 +284,37 @@ const App: React.FC = () => {
         }),
       }));
 
+      const finalText = accumulatedText.trim();
+      if (!finalText) {
+        const fallback =
+          'I could not generate a response just now. Please try again or rephrase your question.';
+        setChatState(prev => ({
+          ...prev,
+          conversations: prev.conversations.map(c => {
+            if (c.id === currentChatId) {
+              const newMessages = c.messages.map(m =>
+                m.id === aiMsgId ? { ...m, content: fallback, isStreaming: false } : m
+              );
+              return { ...c, messages: newMessages };
+            }
+            return c;
+          }),
+        }));
+
+        await api.createMessage({
+          conversationId: currentChatId,
+          userId: auth.user.id,
+          role: Role.MODEL,
+          content: fallback,
+        });
+        return;
+      }
+
       await api.createMessage({
         conversationId: currentChatId,
         userId: auth.user.id,
         role: Role.MODEL,
-        content: accumulatedText,
+        content: finalText,
       });
 
       // Title generation omitted for visual similarity consistency - focusing on the single session flow
@@ -320,6 +351,7 @@ const App: React.FC = () => {
               placeholder="e.g. Rajesh Verma"
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
+              disabled={loginLoading}
             />
 
             {loginError && (
@@ -330,9 +362,14 @@ const App: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3.5 text-lg bg-ayur-dark hover:bg-ayur-green text-white font-serif rounded-xl transition-all shadow-lg hover:shadow-xl"
+              disabled={loginLoading}
+              className={`w-full py-3.5 text-lg font-serif rounded-xl transition-all shadow-lg ${
+                loginLoading
+                  ? 'bg-ayur-dark/70 text-white/80 cursor-not-allowed'
+                  : 'bg-ayur-dark hover:bg-ayur-green text-white hover:shadow-xl'
+              }`}
             >
-              Enter Consultation
+              {loginLoading ? 'Loading...' : 'Enter Consultation'}
             </button>
           </form>
         </div>

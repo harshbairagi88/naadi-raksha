@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -13,6 +14,7 @@ import healthRoutes from './routes/health.routes.js';
 const app = express();
 app.disable('x-powered-by');
 app.use(helmet());
+app.use(compression({ threshold: 1024 }));
 
 // const allowedOrigins = ['http://localhost:5173', ];
 const normalizeOrigin = origin => (origin ? origin.replace(/\/+$/, '') : origin);

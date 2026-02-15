@@ -14,7 +14,7 @@ const Input: React.FC<InputProps> = ({ label, error, className = '', ...props })
         </label>
       )}
       <input
-        className={`w-full px-4 py-3 bg-white border ${error ? 'border-red-500' : 'border-gray-300'} rounded-xl text-ayur-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ayur-leaf focus:border-transparent transition-all shadow-sm ${className}`}
+        className={`w-full px-4 py-3 bg-white border ${error ? 'border-red-500' : 'border-gray-300'} rounded-xl text-ayur-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ayur-leaf focus:border-transparent transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
         {...props}
       />
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}

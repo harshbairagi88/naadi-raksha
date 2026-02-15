@@ -45,7 +45,10 @@ const rawOrigins = [
   .join(',');
 const envOrigins = rawOrigins ? parseOrigins(rawOrigins) : [];
 const defaultOrigins = isProd
-  ? []
+  ? [
+      'https://naadi-raksha.vercel.app',
+      'https://spanda-vidya.vercel.app',
+    ]
   : [
       'http://localhost:5173',
       'http://localhost:3000',
@@ -53,21 +56,34 @@ const defaultOrigins = isProd
       'https://spanda-vidya.vercel.app',
     ];
 
+const mergedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
 const toNumber = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const toNumberAllowZero = (value, fallback, { min = 0, max = Number.POSITIVE_INFINITY } = {}) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  if (parsed < min || parsed > max) return fallback;
+  return parsed;
+};
+
 const _config = {
   NODE_ENV: nodeEnv,
   IS_PROD: isProd,
-  FRONTEND_URLS: envOrigins.length ? envOrigins : defaultOrigins,
+  FRONTEND_URLS: mergedOrigins,
 
   PORT: toNumber(process.env.PORT, 5000),
   MONGODB_URI: process.env.MONGODB_URI || (isProd ? '' : 'mongodb://localhost:27017/SpandaVidyaAi'),
   JWT_SECRET: process.env.JWT_SECRET || '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-3-flash-preview',
+  GEMINI_TEMPERATURE: toNumberAllowZero(process.env.GEMINI_TEMPERATURE, 0.4, { min: 0, max: 1 }),
+  GEMINI_MAX_OUTPUT_TOKENS: toNumber(process.env.GEMINI_MAX_OUTPUT_TOKENS, 512),
+  GEMINI_TOP_P: toNumberAllowZero(process.env.GEMINI_TOP_P, 0.95, { min: 0, max: 1 }),
+  MAX_HISTORY_MESSAGES: toNumber(process.env.MAX_HISTORY_MESSAGES, 12),
   LOG_LEVEL: process.env.LOG_LEVEL || (isProd ? 'info' : 'debug'),
   RATE_LIMIT_WINDOW_MS: toNumber(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
   RATE_LIMIT_MAX: toNumber(process.env.RATE_LIMIT_MAX, isProd ? 300 : 2000),
