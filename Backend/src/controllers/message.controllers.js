@@ -156,3 +156,39 @@ export const createMessage = async (req, res) => {
     });
   }
 };
+
+export const deleteConversationForUser = async (req, res) => {
+  try {
+    const conversationId =
+      typeof req.params?.conversationId === 'string' ? req.params.conversationId.trim() : '';
+    const userId = typeof req.query?.userId === 'string' ? req.query.userId.trim() : '';
+
+    if (!conversationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'conversationId is required',
+      });
+    }
+
+    if (!userId || !mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid userId is required',
+      });
+    }
+
+    const deletedCount = await messageService.deleteConversationForUser(conversationId, userId);
+
+    return res.json({
+      success: true,
+      deletedCount,
+    });
+  } catch (error) {
+    console.error('Delete conversation history error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete conversation history',
+      ...(config.IS_PROD ? {} : { error: error.message }),
+    });
+  }
+};

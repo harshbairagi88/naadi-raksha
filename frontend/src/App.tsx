@@ -232,6 +232,49 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteHistory = async (conversationId: string) => {
+    if (!auth.user) return;
+    const confirmDelete = window.confirm('Delete this history permanently?');
+    if (!confirmDelete) return;
+
+    try {
+      await api.deleteConversationHistory(conversationId, auth.user.id);
+
+      setChatState(prev => {
+        const remainingConversations = prev.conversations.filter(c => c.id !== conversationId);
+        const wasActive = prev.activeConversationId === conversationId;
+        return {
+          ...prev,
+          conversations: remainingConversations,
+          activeConversationId: wasActive
+            ? remainingConversations[remainingConversations.length - 1]?.id || null
+            : prev.activeConversationId,
+        };
+      });
+
+      await refreshHistory();
+
+      setChatState(prev => {
+        if (prev.activeConversationId) return prev;
+        const newChat: Conversation = {
+          id: uuidv4(),
+          title: 'New Chat',
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        return {
+          ...prev,
+          conversations: [...prev.conversations, newChat],
+          activeConversationId: newChat.id,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to delete history:', error);
+      alert('Unable to delete this history. Please try again.');
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!chatService || !chatState.activeConversationId) return;
     if (!auth.user) return;
@@ -425,6 +468,7 @@ const App: React.FC = () => {
         historyItems={historyItems}
         activeConversationId={chatState.activeConversationId}
         onSelectHistory={handleSelectHistory}
+        onDeleteHistory={handleDeleteHistory}
         onStartNewChat={createNewChat}
       />
 

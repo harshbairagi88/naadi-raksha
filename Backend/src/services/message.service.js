@@ -1,4 +1,5 @@
 import Message from '../models/message.model.js';
+import mongoose from 'mongoose';
 
 class MessageService {
   async getConversationMessages(conversationId, options = {}) {
@@ -40,9 +41,11 @@ class MessageService {
   async getUserConversationHistory(userId, options = {}) {
     const { limit = 30 } = options;
     const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const objectUserId =
+      typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
 
     return await Message.aggregate([
-      { $match: { userId } },
+      { $match: { userId: objectUserId } },
       { $sort: { createdAt: -1 } },
       {
         $group: {
@@ -57,6 +60,13 @@ class MessageService {
       { $sort: { latestCreatedAt: -1 } },
       { $limit: safeLimit },
     ]);
+  }
+
+  async deleteConversationForUser(conversationId, userId) {
+    const objectUserId =
+      typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+    const result = await Message.deleteMany({ conversationId, userId: objectUserId });
+    return result.deletedCount || 0;
   }
 }
 

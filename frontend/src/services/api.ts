@@ -98,6 +98,12 @@ export const api = {
     }));
   },
 
+  async deleteConversationHistory(conversationId: string, userId: string): Promise<void> {
+    await request(`/api/messages/conversation/${conversationId}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getLatestHealthForPatient(patientId: string): Promise<HealthData | null> {
     const data = await request<{ success: boolean; count: number; data: any[] }>(
       `/api/health/patient/${patientId}?limit=1`

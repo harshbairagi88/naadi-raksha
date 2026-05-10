@@ -13,6 +13,7 @@ interface SidebarProps {
   historyItems?: ConversationHistoryItem[];
   activeConversationId?: string | null;
   onSelectHistory?: (conversationId: string) => void;
+  onDeleteHistory?: (conversationId: string) => void;
   onStartNewChat?: () => void;
 }
 
@@ -72,6 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   historyItems = [],
   activeConversationId = null,
   onSelectHistory,
+  onDeleteHistory,
   onStartNewChat,
 }) => {
   const [isSnapshotPinnedOpen, setIsSnapshotPinnedOpen] = useState(false);
@@ -358,20 +360,50 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="text-xs text-white/60">No history yet</div>
               ) : (
                 historyItems.map(item => (
-                  <button
+                  <div
                     key={item.conversationId}
-                    onClick={() => onSelectHistory?.(item.conversationId)}
-                    className={`w-full text-left p-2 rounded-lg transition-all duration-200 hover:translate-x-1 border ${
+                    className={`w-full p-2 rounded-lg transition-all duration-200 border ${
                       activeConversationId === item.conversationId
                         ? 'bg-white/15 border-white/30'
                         : 'bg-white/5 border-white/10 hover:bg-white/10'
                     }`}
-                    title={item.latestContent}
                   >
-                    <div className="text-sm text-white truncate">
-                      {item.latestContent || `Chat ${formatHistoryTime(item.latestCreatedAt)}`}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onSelectHistory?.(item.conversationId)}
+                        className="flex-1 min-w-0 text-left"
+                        title={item.latestContent}
+                      >
+                        <div className="text-sm text-white truncate">
+                          {`Digestion: ${item.latestContent || formatHistoryTime(item.latestCreatedAt)}`}
+                        </div>
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          onDeleteHistory?.(item.conversationId);
+                        }}
+                        className="text-white/60 hover:text-red-300 transition-colors p-1"
+                        title="Delete history"
+                        aria-label="Delete history"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0115.916 21H8.084a2.25 2.25 0 01-2.244-1.327L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0V4.5A2.25 2.25 0 0013.5 2.25h-3A2.25 2.25 0 008.25 4.5v.893"
+                          />
+                        </svg>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
