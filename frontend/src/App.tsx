@@ -1,13 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import Button from './components/Button';
 import ChatInterface from './components/ChatInterface';
 import Input from './components/Input';
 import Sidebar from './components/Sidebar';
 import { ICONS } from './constants';
 import { api } from './services/api';
 import { ChatService } from './services/chatService';
-import { AuthState, ChatState, Conversation, HealthData, Message, Role } from './types';
+import {
+  AuthState,
+  ChatState,
+  Conversation,
+  ConversationHistoryItem,
+  HealthData,
+  Message,
+  Role,
+} from './types';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -21,12 +28,12 @@ const App: React.FC = () => {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // --- Chat State ---
-  const [chatState, setChatState] = useState<ChatState>(() => {
-    const saved = localStorage.getItem('nebula_chats');
-    return saved
-      ? JSON.parse(saved)
-      : { conversations: [], activeConversationId: null, isTyping: false };
+  const [chatState, setChatState] = useState<ChatState>({
+    conversations: [],
+    activeConversationId: null,
+    isTyping: false,
   });
+  const [historyItems, setHistoryItems] = useState<ConversationHistoryItem[]>([]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [chatService, setChatService] = useState<ChatService | null>(null);
@@ -35,7 +42,33 @@ const App: React.FC = () => {
   const [healthError, setHealthError] = useState('');
   const [healthUpdatedAt, setHealthUpdatedAt] = useState<number | null>(null);
 
-  // --- Persistence Effects ---
+  const createNewChat = useCallback(() => {
+    const newChat: Conversation = {
+      id: uuidv4(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setChatState(prev => ({
+      ...prev,
+      conversations: [...prev.conversations, newChat],
+      activeConversationId: newChat.id,
+    }));
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    if (!auth.user) return;
+    try {
+      const items = await api.getUserConversationHistory(auth.user.id);
+      setHistoryItems(items);
+    } catch (error) {
+      console.error('Failed to load history:', error);
+    }
+  }, [auth.user]);
+
+  // --- Persistence / Session Effects ---
   useEffect(() => {
     localStorage.setItem('nebula_auth', JSON.stringify(auth));
     if (auth.isAuthenticated && auth.user) {
@@ -50,6 +83,25 @@ const App: React.FC = () => {
       });
     }
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.user) {
+      setChatState({ conversations: [], activeConversationId: null, isTyping: false });
+      setHistoryItems([]);
+      return;
+    }
+
+    // Always start with a fresh chat on each authenticated visit.
+    setChatState({ conversations: [], activeConversationId: null, isTyping: false });
+    createNewChat();
+    refreshHistory();
+  }, [auth.isAuthenticated, auth.user?.id, createNewChat, refreshHistory]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    if (chatState.activeConversationId) return;
+    createNewChat();
+  }, [auth.isAuthenticated, chatState.activeConversationId, createNewChat]);
 
   useEffect(() => {
     if (!auth.isAuthenticated || !auth.user) {
@@ -90,11 +142,7 @@ const App: React.FC = () => {
     };
   }, [auth.isAuthenticated, auth.user?.id]);
 
-  useEffect(() => {
-    localStorage.setItem('nebula_chats', JSON.stringify(chatState));
-  }, [chatState]);
-
-  // Sync messages from backend when authenticated and have active conversation (must run every render - hooks order)
+  // Sync messages from backend when authenticated and have active conversation
   useEffect(() => {
     if (!auth.isAuthenticated || !chatState.activeConversationId) return;
 
@@ -107,8 +155,7 @@ const App: React.FC = () => {
         setChatState(prev => {
           const updatedConvs = prev.conversations.map(c => {
             if (c.id !== chatState.activeConversationId) return c;
-            const merged =
-              remoteMessages.length >= c.messages.length ? remoteMessages : c.messages;
+            const merged = remoteMessages.length >= c.messages.length ? remoteMessages : c.messages;
             return { ...c, messages: merged, updatedAt: Date.now() };
           });
           return { ...prev, conversations: updatedConvs };
@@ -138,11 +185,6 @@ const App: React.FC = () => {
       setLoginLoading(true);
       const user = await api.createUser(nameInput.trim());
       setAuth({ user, isAuthenticated: true });
-
-      // Create first chat if none
-      if (chatState.conversations.length === 0) {
-        createNewChat();
-      }
     } catch (error) {
       console.error('Login error:', error);
       setLoginError('Unable to connect to server. Please try again.');
@@ -154,44 +196,40 @@ const App: React.FC = () => {
   const handleLogout = () => {
     chatService?.disconnect();
     setAuth({ user: null, isAuthenticated: false });
-    setChatState({ ...chatState, activeConversationId: null });
+    setChatState({ conversations: [], activeConversationId: null, isTyping: false });
+    setHistoryItems([]);
     setHealthData(null);
     setHealthError('');
     setHealthLoading(false);
     setHealthUpdatedAt(null);
   };
 
-  const createNewChat = useCallback(() => {
-    const newChat: Conversation = {
-      id: uuidv4(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setChatState(prev => ({
-      ...prev,
-      conversations: [...prev.conversations, newChat],
-      activeConversationId: newChat.id,
-    }));
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
-  }, []);
-
-  const deleteChat = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setChatState(prev => {
-      const newConvs = prev.conversations.filter(c => c.id !== id);
-      return {
-        ...prev,
-        conversations: newConvs,
-        activeConversationId:
-          prev.activeConversationId === id
-            ? newConvs.length > 0
-              ? newConvs[newConvs.length - 1].id
-              : null
-            : prev.activeConversationId,
+  const handleSelectHistory = async (conversationId: string) => {
+    try {
+      const remoteMessages = await api.getConversationMessages(conversationId);
+      const selectedConversation: Conversation = {
+        id: conversationId,
+        title: remoteMessages[0]?.content?.slice(0, 40) || 'Chat History',
+        messages: remoteMessages,
+        createdAt: remoteMessages[0]?.timestamp || Date.now(),
+        updatedAt: remoteMessages[remoteMessages.length - 1]?.timestamp || Date.now(),
       };
-    });
+
+      setChatState(prev => {
+        const exists = prev.conversations.some(c => c.id === conversationId);
+        return {
+          ...prev,
+          conversations: exists
+            ? prev.conversations.map(c => (c.id === conversationId ? selectedConversation : c))
+            : [...prev.conversations, selectedConversation],
+          activeConversationId: conversationId,
+        };
+      });
+
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to load history conversation:', error);
+    }
   };
 
   const handleSendMessage = async (text: string) => {
@@ -200,7 +238,6 @@ const App: React.FC = () => {
 
     const currentChatId = chatState.activeConversationId;
 
-    // 1. Add User Message
     const userMsg: Message = {
       id: uuidv4(),
       role: Role.USER,
@@ -225,8 +262,8 @@ const App: React.FC = () => {
         role: Role.USER,
         content: text,
       });
+      refreshHistory();
 
-      // 2. Prepare for AI Response
       const aiMsgId = uuidv4();
       const placeholderAiMsg: Message = {
         id: aiMsgId,
@@ -243,16 +280,13 @@ const App: React.FC = () => {
         ),
       }));
 
-      // 3. Get History for context
       const currentConversation = chatState.conversations.find(c => c.id === currentChatId);
       const history = currentConversation ? currentConversation.messages : [];
       const effectiveHistory = [...history, userMsg];
 
-      // 4. Stream Response
       const stream = await chatService.streamChat(effectiveHistory, text, currentChatId);
 
       let accumulatedText = '';
-
       for await (const chunk of stream) {
         accumulatedText += chunk;
         setChatState(prev => ({
@@ -269,7 +303,6 @@ const App: React.FC = () => {
         }));
       }
 
-      // 5. Finalize
       setChatState(prev => ({
         ...prev,
         isTyping: false,
@@ -307,6 +340,7 @@ const App: React.FC = () => {
           role: Role.MODEL,
           content: fallback,
         });
+        refreshHistory();
         return;
       }
 
@@ -316,13 +350,10 @@ const App: React.FC = () => {
         role: Role.MODEL,
         content: finalText,
       });
-
-      // Title generation omitted for visual similarity consistency - focusing on the single session flow
+      refreshHistory();
     } catch (error) {
       console.error('Chat error', error);
-      setChatState(prev => {
-        return { ...prev, isTyping: false };
-      });
+      setChatState(prev => ({ ...prev, isTyping: false }));
       alert('Failed to generate response. Please check your configuration.');
     }
   };
@@ -377,7 +408,6 @@ const App: React.FC = () => {
     );
   }
 
-  // --- Render Chat App ---
   const activeConversation = chatState.conversations.find(
     c => c.id === chatState.activeConversationId
   );
@@ -392,10 +422,13 @@ const App: React.FC = () => {
         healthLoading={healthLoading}
         healthError={healthError}
         healthUpdatedAt={healthUpdatedAt ?? undefined}
+        historyItems={historyItems}
+        activeConversationId={chatState.activeConversationId}
+        onSelectHistory={handleSelectHistory}
+        onStartNewChat={createNewChat}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative bg-ayur-bg">
-        {/* Overlay for mobile sidebar */}
         {isSidebarOpen && (
           <div
             className="absolute inset-0 bg-black/50 z-30 md:hidden"
@@ -403,19 +436,14 @@ const App: React.FC = () => {
           />
         )}
 
-        {activeConversation ? (
-          <ChatInterface
-            messages={activeConversation.messages}
-            onSendMessage={handleSendMessage}
-            isTyping={chatState.isTyping}
-            onToggleSidebar={() => setIsSidebarOpen(true)}
-            userName={auth.user?.name}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <Button onClick={createNewChat}>Start Consultation</Button>
-          </div>
-        )}
+        <ChatInterface
+          messages={activeConversation?.messages || []}
+          onSendMessage={handleSendMessage}
+          isTyping={chatState.isTyping}
+          onToggleSidebar={() => setIsSidebarOpen(true)}
+          onLogout={handleLogout}
+          userName={auth.user?.name}
+        />
       </div>
     </div>
   );

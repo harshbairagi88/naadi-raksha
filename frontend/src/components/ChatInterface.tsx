@@ -8,6 +8,7 @@ interface ChatInterfaceProps {
   onSendMessage: (text: string) => void;
   isTyping: boolean;
   onToggleSidebar: () => void;
+  onLogout: () => void;
   userName?: string;
 }
 
@@ -16,6 +17,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onSendMessage,
   isTyping,
   onToggleSidebar,
+  onLogout,
   userName = 'User',
 }) => {
   const [input, setInput] = useState('');
@@ -107,6 +109,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </button>
           <button className="text-green-100 hover:text-white">
             <ICONS.Settings />
+          </button>
+          <button
+            className="text-green-100 hover:text-white"
+            onClick={onLogout}
+            title="Logout"
+            aria-label="Logout"
+          >
+            <ICONS.Logout />
           </button>
         </div>
       </div>

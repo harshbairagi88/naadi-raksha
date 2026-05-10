@@ -4,10 +4,8 @@ SpandaVidyaAi — Ayurvedic AI Chat Assistant
 SpandaVidyaAi is a modern AI-powered chat application that responds like an Ayurvedic doctor (Vaidya).
 It blends classical Ayurvedic knowledge with Google Gemini AI to provide natural, context-aware wellness guidance through a clean, minimal chat interface.
 
-
 [![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
-
 
 The project focuses on:
 
@@ -129,46 +127,19 @@ Keep AI logic centralized in geminiService.ts
 Maintain small, reusable UI components
 Extend via prompts, not hard-coded logic
 
-🛣️ Future Enhancements
-
-User profiles & Dosha history
-Conversation persistence
-Multi-language support
-Auth + secure backend proxy
-Ayurvedic diet & routine modules
-Mobile-first UI refinement
-
-🤝 Contributing
-
-Fork the repository
-Create a feature branch
-Keep commits clean and focused
-Submit a PR with a clear description
 
 📄 License
 
 No license included yet.
 Add MIT or Apache 2.0 before public distribution.
 
-👨‍💻 Developer
-
-<div align="center">
-Harsh Bairagi
-
-Full Stack Developer (MERN)
-
-
-</div>
-
-
-
 
 
 ### NOW UPGRADE IT WITH 10k USERS
 
-1) Product Definition Layer
-What exactly you are building
-A multi-tenant, real-time AI chat platform with:
+1. Product Definition Layer
+   What exactly you are building
+   A multi-tenant, real-time AI chat platform with:
 
 User auth + teams/workspaces
 
@@ -256,11 +227,11 @@ Concurrency target: architect for 1M simultaneous websocket/SSE sessions
 
 Durability: RPO < 5 min, RTO < 30 min (regional DR)
 
-2) High-Level System Architecture
-System diagram (textual)
-Client -> CDN/WAF -> API Gateway -> (Auth, Chat API) -> AI Orchestrator -> LLM Adapter(s)
-AI Orchestrator -> RAG Service -> Vector DB + Object Store + Metadata DB
-All services -> Redis/Queue -> DBs -> Observability stack
+2. High-Level System Architecture
+   System diagram (textual)
+   Client -> CDN/WAF -> API Gateway -> (Auth, Chat API) -> AI Orchestrator -> LLM Adapter(s)
+   AI Orchestrator -> RAG Service -> Vector DB + Object Store + Metadata DB
+   All services -> Redis/Queue -> DBs -> Observability stack
 
 Layer breakdown
 Edge Layer: CDN, WAF, bot filtering, TLS termination
@@ -319,8 +290,8 @@ Queues: partition/topic scaling with consumer groups
 
 Monitoring: cardinality control to avoid observability collapse
 
-3) Deep Technical Architecture (Component by Component)
-I’ll keep each component in the same format.
+3. Deep Technical Architecture (Component by Component)
+   I’ll keep each component in the same format.
 
 A) Frontend
 Purpose: UX, streaming display, retries, offline behavior
@@ -589,9 +560,9 @@ Optimization: adaptive limits from behavior score
 
 Alternatives: gateway native limiters + custom risk engine
 
-4) AI Layer Deep Dive
-OpenAI API vs self-hosted models
-OpenAI/API providers
+4. AI Layer Deep Dive
+   OpenAI API vs self-hosted models
+   OpenAI/API providers
 
 Pros: fastest to market, high quality, no GPU ops burden
 
@@ -680,9 +651,9 @@ off-peak indexing
 
 model routing by difficulty score
 
-5) Scalability Strategy (10 → 10K → 1 Lakh → 10 Lakh)
-Stage 1: 10 users (MVP)
-Single region, managed DB, managed Redis
+5. Scalability Strategy (10 → 10K → 1 Lakh → 10 Lakh)
+   Stage 1: 10 users (MVP)
+   Single region, managed DB, managed Redis
 
 One LLM provider
 
@@ -763,8 +734,8 @@ duplicate events and replay storms
 
 tracing across async boundaries
 
-6) Edge Cases & Failure Handling (Mitigation Plan)
-AI API downtime: multi-provider failover, cached fallback response patterns, queued retry.
+6. Edge Cases & Failure Handling (Mitigation Plan)
+   AI API downtime: multi-provider failover, cached fallback response patterns, queued retry.
 
 DB crash: automated failover, read-only degraded mode, WAL backups.
 
@@ -788,8 +759,8 @@ Partial response failure: resumable stream with last token index.
 
 Rate abuse: per-user/org/device fingerprint limits + behavior scoring.
 
-7) Security Architecture
-Authentication: OIDC, MFA, short JWT TTL, refresh rotation
+7. Security Architecture
+   Authentication: OIDC, MFA, short JWT TTL, refresh rotation
 
 Authorization: RBAC + ABAC, tenant scoping everywhere
 
@@ -813,8 +784,8 @@ Secure logging: PII redaction and token hashing
 
 Compliance: SOC2 controls, GDPR deletion workflows, data residency options
 
-8) Performance Engineering
-Latency reduction
+8. Performance Engineering
+   Latency reduction
 
 co-locate orchestrator and vector DB
 
@@ -854,185 +825,35 @@ custom token-stream benchmarks
 
 chaos testing (Litmus/ChaosMesh)
 
-9) Cost Architecture
-Cost buckets
-AI inference (largest variable cost in early stages)
 
-GPU hosting (if self-hosting)
 
-Compute (API/orchestrator/workers)
 
-Storage (DB + object + vector)
 
-Network egress/CDN
 
-Monitoring/log ingestion
 
-Cost per user estimation (framework)
-CPU/API + DB IO + cache + model tokens in/out + retrieval ops + egress
-Track per-tenant:
+11. Production Readiness Checklist
+    SLOs defined (latency, error rate, availability)
 
-avg prompts/day
+Error budget policy and incident response process
 
-avg input/output tokens
+Multi-layer rate limiting + abuse controls
 
-retrieval frequency
+Tenant isolation tests (DB/vector/cache/object store)
 
-model mix %
+Secrets rotation + least-privilege IAM
 
-Optimization roadmap
-Enforce token budgets
+End-to-end tracing across async pipelines
 
-Introduce model routing
+Load tests at 2x expected peak
 
-Cache frequent queries/prompts
+Chaos tests for DB/Redis/provider failures
 
-Batch embeddings and offline tasks
+Runbooks for top 20 incidents
 
-Negotiate provider committed-use pricing
+Billing metering verified vs model provider usage
 
-Move heavy stable workloads to self-hosted inference
+Backup + restore drill passed
 
-10) DevOps & Deployment Strategy
-Docker architecture
+Canary rollback automation validated
 
-minimal base images, multi-stage builds, SBOM + image signing
-
-Kubernetes setup
-
-namespaces by env, network policies, secret manager CSI
-
-Rolling deployments
-
-maxUnavailable 0 for critical APIs
-
-Blue-green
-
-for risky infra-level migrations
-
-Canary releases
-
-1% -> 5% -> 25% -> 100% with SLO gates
-
-Health checks
-
-liveness, readiness, startup probes
-
-Disaster recovery
-
-cross-region backups + failover runbooks
-
-Backup strategy
-
-PITR for DB, snapshot vector/index metadata, tested restore drills
-
-11) Production Readiness Checklist
- SLOs defined (latency, error rate, availability)
-
- Error budget policy and incident response process
-
- Multi-layer rate limiting + abuse controls
-
- Tenant isolation tests (DB/vector/cache/object store)
-
- Secrets rotation + least-privilege IAM
-
- End-to-end tracing across async pipelines
-
- Load tests at 2x expected peak
-
- Chaos tests for DB/Redis/provider failures
-
- Runbooks for top 20 incidents
-
- Billing metering verified vs model provider usage
-
- Backup + restore drill passed
-
- Canary rollback automation validated
-
- Compliance controls mapped (audit logs, retention, deletion)
-
-12) Step-by-Step Learning Roadmap (for you)
-Phase 1 (0–6 weeks): MVP fundamentals
-Learn:
-
-REST APIs, auth basics, Redis, Postgres, SSE streaming
-
-one provider integration + conversation persistence
-Ignore initially:
-
-multi-region, self-hosted LLM, complex service mesh
-
-Phase 2 (6–12 weeks): Reliability & scale basics
-Learn:
-
-Kubernetes basics, autoscaling, queues, tracing
-
-rate limiting, retries, idempotency, circuit breaker
-Build:
-
-RAG v1, usage metering, feature flags
-
-Phase 3 (3–6 months): Production hardening
-Learn:
-
-partitioning/sharding, failure testing, incident management
-
-security controls, tenant isolation, compliance foundations
-Build:
-
-multi-provider routing, cost governance, canary releases
-
-Phase 4 (6–12 months): Enterprise scale
-Learn:
-
-multi-region architecture, advanced observability, SRE practices
-
-GPU inference ops (if moving self-hosted)
-Build:
-
-active-active strategy, advanced risk engine, policy governance
-
-Common junior pitfalls to avoid
-overbuilding too early (premature microservices)
-
-ignoring idempotency and retries
-
-no token budget controls (cost explosion)
-
-poor traceability (can’t debug distributed failures)
-
-weak tenant isolation assumptions
-
-Suggested Reference Stack (2026 practical default)
-Frontend: Next.js + TypeScript
-
-API: Go or Node (Fastify/Nest) + gRPC internal
-
-Orchestration: Python/Go service
-
-DB: Postgres + read replicas/partitioning
-
-Vector: Qdrant/Weaviate/Pinecone
-
-Cache: Redis Cluster
-
-Queue: Kafka + SQS/Rabbit hybrid
-
-Infra: Kubernetes + ArgoCD + Terraform
-
-Observability: OpenTelemetry + Prometheus + Grafana + Loki/Tempo
-
-Security: OIDC + OPA + Vault/KMS + WAF/CDN
-
-If you want, next I can give you:
-
-a concrete 3-month implementation plan (weekly milestones), and
-
-a reference microservice repo structure with API contracts and schema designs.
-
-Commands used
-✅ pwd && rg --files -g 'AGENTS.md'
-
-✅ find .. -name AGENTS.md -print
+Compliance controls mapped (audit logs, retention, deletion)

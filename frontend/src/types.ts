@@ -36,6 +36,14 @@ export interface ChatState {
   isTyping: boolean;
 }
 
+export interface ConversationHistoryItem {
+  conversationId: string;
+  latestContent: string;
+  latestRole: Role;
+  latestCreatedAt: string;
+  firstCreatedAt: string;
+}
+
 export interface HealthBloodPressure {
   systolic?: number;
   diastolic?: number;

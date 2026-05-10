@@ -49,6 +49,39 @@ export const getConversationMessages = async (req, res) => {
   }
 };
 
+export const getUserConversationHistory = async (req, res) => {
+  try {
+    const userId = typeof req.params?.userId === 'string' ? req.params.userId.trim() : '';
+    const parsedLimit = parseInt(req.query?.limit, 10);
+    const safeLimit = Number.isFinite(parsedLimit) ? parsedLimit : 30;
+    const clampedLimit = Math.min(Math.max(safeLimit, 1), 100);
+
+    if (!userId || !mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid userId is required',
+      });
+    }
+
+    const history = await messageService.getUserConversationHistory(userId, {
+      limit: clampedLimit,
+    });
+
+    return res.json({
+      success: true,
+      data: history,
+      count: history.length,
+    });
+  } catch (error) {
+    console.error('Get user conversation history error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch conversation history',
+      ...(config.IS_PROD ? {} : { error: error.message }),
+    });
+  }
+};
+
 export const createMessage = async (req, res) => {
   try {
     if (!req.body || typeof req.body !== 'object') {

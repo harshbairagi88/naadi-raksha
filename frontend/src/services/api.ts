@@ -1,4 +1,4 @@
-import { HealthData, Message, Role, User } from '../types';
+import { ConversationHistoryItem, HealthData, Message, Role, User } from '../types';
 
 // In dev use relative URL so Vite proxy forwards /api to backend (avoids CORS). Production: set VITE_API_URL.
 const env = import.meta.env;
@@ -75,6 +75,27 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  },
+
+  async getUserConversationHistory(userId: string): Promise<ConversationHistoryItem[]> {
+    const data = await request<{
+      success: boolean;
+      data: Array<{
+        conversationId: string;
+        latestContent: string;
+        latestRole: Role;
+        latestCreatedAt: string;
+        firstCreatedAt: string;
+      }>;
+    }>(`/api/messages/user/${userId}/history`);
+
+    return (data.data || []).map(item => ({
+      conversationId: item.conversationId,
+      latestContent: item.latestContent,
+      latestRole: item.latestRole,
+      latestCreatedAt: item.latestCreatedAt,
+      firstCreatedAt: item.firstCreatedAt,
+    }));
   },
 
   async getLatestHealthForPatient(patientId: string): Promise<HealthData | null> {

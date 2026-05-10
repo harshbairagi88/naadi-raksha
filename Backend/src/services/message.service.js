@@ -36,6 +36,28 @@ class MessageService {
     await message.save();
     return message.toObject();
   }
+
+  async getUserConversationHistory(userId, options = {}) {
+    const { limit = 30 } = options;
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+
+    return await Message.aggregate([
+      { $match: { userId } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$conversationId',
+          conversationId: { $first: '$conversationId' },
+          latestContent: { $first: '$content' },
+          latestRole: { $first: '$role' },
+          latestCreatedAt: { $first: '$createdAt' },
+          firstCreatedAt: { $last: '$createdAt' },
+        },
+      },
+      { $sort: { latestCreatedAt: -1 } },
+      { $limit: safeLimit },
+    ]);
+  }
 }
 
 export default new MessageService();
